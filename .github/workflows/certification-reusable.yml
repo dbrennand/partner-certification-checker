@@ -76,7 +76,7 @@ on:
         required: false
 
 jobs:
-  # Build the collection and run galaxy-importer on it
+  # Build the collection and run galaxy-importer
   # skipping ansible-lint as it runs as a separate job
   build-import:
     name: "Build & import collection"
