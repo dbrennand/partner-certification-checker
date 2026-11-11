@@ -1,0 +1,2 @@
+bugfixes:
+  - Disable fail-fast for the sanity matrix so a failure on one ansible-core branch does not cancel checks on other branches.

@@ -239,6 +239,7 @@ jobs:
     name: Sanity (Ⓐ${{ matrix.ansible }}) (controller Python 3.12)
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.compute-sanity-matrix.outputs.matrix) }}
 
