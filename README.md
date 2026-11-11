@@ -109,8 +109,16 @@ from `galaxy.yml` through `antsibull-nox`. The `collection-deps` input adds furt
 collections; other `requirements.yml` files are not loaded automatically.
 Automation Hub configuration is also used for this dependency resolution.
 
-The workflow generates its own Nox driver outside the collection and does not
-load or replace a partner's `noxfile.py` or `antsibull-nox.toml`. Sanity outputs,
+The workflow fetches a standalone Nox driver and `requirements/sanity.txt` from
+an explicitly pinned checker revision, then moves them outside the collection.
+The regression tests use that same requirements file and verify that the pinned
+files match the files in this checkout. Updating either file requires a commit
+containing the updated tools, followed by a workflow update to pin that commit.
+The prototype fetches these tools from `dbrennand/partner-certification-checker`;
+upstream adoption must update that repository reference.
+
+The driver does not load or replace a partner's `noxfile.py` or
+`antsibull-nox.toml`. Sanity outputs,
 including JUnit reports, are uploaded as `sanity-<branch>-<unique-id>` artifacts,
 including when sanity checks fail. This prototype requires a major release and
 porting guidance before adoption; it is not a released certification workflow.

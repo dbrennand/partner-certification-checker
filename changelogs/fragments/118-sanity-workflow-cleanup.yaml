@@ -1,0 +1,2 @@
+trivial:
+  - Fetch the standalone prototype sanity driver and shared requirements from a pinned checker revision, update upload-artifact to v7.0.2, and refresh test instructions.

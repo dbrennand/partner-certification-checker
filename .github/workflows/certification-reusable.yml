@@ -12,8 +12,6 @@ permissions:
 env:
   GALAXY_IMPORTER_VER: "0.4.39"
   ANSIBLE_LINT_VER: "26.4.0"
-  ANTSIBULL_NOX_VER: "1.10.0"
-  NOX_VER: "2026.10.20"
 
 on:
   workflow_call:
@@ -262,8 +260,29 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Checkout sanity tools
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: dbrennand/partner-certification-checker
+          # Standalone driver and shared requirements packaged for this prototype.
+          ref: 55951a0fbdb07373e68b1db279ef34202c6c087e
+          path: .certification-checker
+          persist-credentials: false
+          sparse-checkout: |
+            /.github/scripts/certification_noxfile.py
+            /requirements/sanity.txt
+          sparse-checkout-cone-mode: false
+
+      - name: Prepare sanity tools
+        id: sanity-tools
+        shell: bash
+        run: |
+          mv "${GITHUB_WORKSPACE}/.certification-checker" "${RUNNER_TEMP}/certification-checker"
+          report_id="$(python -c 'import uuid; print(uuid.uuid4())')"
+          echo "report-id=${report_id}" >> "${GITHUB_OUTPUT}"
+
       - name: Install Nox and antsibull-nox
-        run: python -m pip install "nox==${NOX_VER}" "antsibull-nox==${ANTSIBULL_NOX_VER}"
+        run: python -m pip install -r "${RUNNER_TEMP}/certification-checker/requirements/sanity.txt"
 
       - name: Configure Red Hat Ansible Automation Hub
         if: ${{ inputs.automation-hub }}
@@ -271,64 +290,16 @@ jobs:
         with:
           ah-token: ${{ secrets.AH_TOKEN }} # zizmor: ignore[secrets-outside-env]
 
-      # Keep the driver outside the collection and independent of partner Nox config.
-      # Embedding it ties its version to the reusable workflow, including fork tests.
-      - name: Write sanity noxfile
-        id: sanity-driver
-        shell: bash
-        run: |
-          report_id="$(python -c 'import uuid; print(uuid.uuid4())')"
-          echo "report-id=${report_id}" >> "${GITHUB_OUTPUT}"
-          cat > "${RUNNER_TEMP}/certification-noxfile.py" <<'PY'
-          import os
-          import shutil
-          from pathlib import Path
-
-          import nox
-          from antsibull_nox.sessions import prepare_collections
-
-
-          @nox.session(python="3.12")
-          def certification_sanity(session):
-              branch = os.environ["SANITY_BRANCH"]
-              collection_root = (
-                  Path(os.environ["GITHUB_WORKSPACE"]) / os.environ["COLLECTION_ROOT"]
-              ).resolve()
-              results = Path(os.environ["RUNNER_TEMP"]) / "certification-sanity-results"
-              session.install(f"https://github.com/ansible/ansible/archive/{branch}.tar.gz")
-              with session.chdir(collection_root):
-                  prepared = prepare_collections(
-                      session,
-                      ansible_core_version=branch.removeprefix("stable-"),
-                      install_in_site_packages=False,
-                      install_out_of_tree=True,
-                      extra_collections=os.environ["COLLECTION_DEPS"].split(),
-                  )
-              if prepared is None:
-                  session.error("Collection preparation failed")
-              try:
-                  with session.chdir(prepared.current_path):
-                      session.run(
-                          "ansible-test", "sanity",
-                          "--controller", "docker:default,python=3.12",
-                          "--junit", "-v", "--color", "yes",
-                      )
-              finally:
-                  output = prepared.current_path / "tests" / "output"
-                  if output.is_dir():
-                      shutil.copytree(output, results, dirs_exist_ok=True)
-          PY
-
       - name: Perform sanity testing
         run: >-
-          nox --noxfile "${RUNNER_TEMP}/certification-noxfile.py"
+          nox --noxfile "${RUNNER_TEMP}/certification-checker/.github/scripts/certification_noxfile.py"
           --envdir "${RUNNER_TEMP}/certification-nox"
           --session certification_sanity
 
       - name: Upload sanity results
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: sanity-${{ matrix.ansible }}-${{ steps.sanity-driver.outputs.report-id }}
+          name: sanity-${{ matrix.ansible }}-${{ steps.sanity-tools.outputs.report-id }}
           path: ${{ runner.temp }}/certification-sanity-results/
           if-no-files-found: ignore

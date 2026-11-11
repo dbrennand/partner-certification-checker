@@ -35,6 +35,8 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          # Packaging tests compare the workflow's pinned tools with this checkout.
+          fetch-depth: 0
 
       - name: Setup nox
         uses: wntrblm/nox@5a277b752f6094150e25237d47c34168e2b7526e # 2026.02.09

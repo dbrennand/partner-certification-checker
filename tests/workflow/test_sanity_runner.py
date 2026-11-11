@@ -2,6 +2,8 @@
 
 import importlib.util
 import os
+import re
+import subprocess
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
@@ -9,8 +11,29 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+import yaml
 
-DRIVER = Path(__file__).resolve().parents[2] / ".github/scripts/certification_noxfile.py"
+
+ROOT = Path(__file__).resolve().parents[2]
+DRIVER = ROOT / ".github/scripts/certification_noxfile.py"
+
+
+class SanityPackagingTests(unittest.TestCase):
+    def test_workflow_pins_the_driver_and_requirements_under_test(self):
+        workflow = yaml.safe_load((ROOT / ".github/workflows/certification-reusable.yml").read_text())
+        checkout = next(
+            step for step in workflow["jobs"]["sanity"]["steps"]
+            if step["name"] == "Checkout sanity tools"
+        )
+        revision = checkout["with"]["ref"]
+        self.assertRegex(revision, re.compile(r"^[0-9a-f]{40}$"))
+        for path in (".github/scripts/certification_noxfile.py", "requirements/sanity.txt"):
+            with self.subTest(path=path):
+                packaged = subprocess.run(
+                    ["git", "show", f"{revision}:{path}"],
+                    cwd=ROOT, check=True, capture_output=True,
+                ).stdout
+                self.assertEqual(packaged, (ROOT / path).read_bytes())
 
 
 class SanityRunnerTests(unittest.TestCase):

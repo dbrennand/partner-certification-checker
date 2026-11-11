@@ -27,25 +27,30 @@ Installs [zizmor](https://github.com/woodruffw/zizmor) via pip and scans `.githu
 
 ### Changes to the reusable workflow's behavior (inputs, outputs, checks performed)
 
-Run `nox -e workflow_tests` for local regression checks of the embedded sanity
+Run `nox -e workflow_tests` for local regression checks of the standalone sanity
 driver: Python 3.12 controller selection, unrestricted targets, collection root
 and dependency forwarding, preparation failure, and report preservation on failure.
+They also check that the workflow pins the same driver and requirements files
+that are tested locally. These packaging checks require the pinned commit to be
+available locally; CI checks out full history for this purpose.
 These tests mock collection preparation and command execution; they do not run
 containers or resolve dependencies. Full workflow validation is end-to-end via
 GitHub Actions:
 
-- Push the branch / open a PR to trigger [test-certification-main-branch.yml](../../../.github/workflows/test-certification-main-branch.yml), which calls `certification-reusable.yml` several ways against this repo's own sample and fixture collections:
+- Open a PR, or dispatch the workflow on the prototype branch, to run [test-certification-main-branch.yml](../../../.github/workflows/test-certification-main-branch.yml), which calls `certification-reusable.yml` several ways against this repo's own sample and fixture collections:
   - default ansible-core version
   - `ansible-core-version: '2.18.0'`
   - `ansible-core-version: '2.20.0'`
   - `collection-root: 'tests/fixtures/collection'`
   - `collection-deps: 'kubernetes.core'`
   - `collection-deps: 'kubernetes.core amazon.aws ansible.mcp'`
-- This is the closest thing to an integration-test suite for the checker and cannot be run locally.
+- This is the full integration-test suite for the reusable workflow. The standalone
+  driver can also run locally with Docker and the workflow environment variables,
+  as demonstrated against community.beszel.
 
 ### Changes to the sample/fixture collection (`plugins/`, `tests/fixtures/collection/`)
 
 These mirror what the reusable workflow itself checks for consumers:
 - `ansible-lint --profile=production` (config: `.ansible-lint`)
-- `ansible-test sanity` against the ansible-core stable branches in the sanity matrix (`stable-2.16`, `stable-2.18`, `stable-2.20`) — run via the `ansible-community/ansible-test-gh-action` in CI, containerized.
-- A pytest unit test exists at `tests/unit/plugins/modules/test_sample_module.py`, but **it is not currently wired into any CI workflow in this repo** (`ci.yaml` only runs `actionlint`/`zizmor`; `certification-reusable.yml` only runs build-import, lint, and sanity). Treat this as a known gap — mention it if relevant, but don't silently "fix" it as a side effect of unrelated work.
+- `ansible-test sanity` against the ansible-core stable branches in the sanity matrix (`stable-2.16`, `stable-2.18`, `stable-2.20`) — run via the standalone antsibull-nox driver in CI, containerized.
+- A pytest unit test exists at `tests/unit/plugins/modules/test_sample_module.py`, but **it is not currently wired into any CI workflow in this repo** (`ci.yaml` runs `actionlint`, `zizmor`, and the driver regression tests; `certification-reusable.yml` only runs build-import, lint, and sanity). Treat this as a known gap — mention it if relevant, but don't silently "fix" it as a side effect of unrelated work.
