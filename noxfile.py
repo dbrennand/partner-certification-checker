@@ -66,5 +66,5 @@ def zizmor(session: nox.Session) -> None:
 @nox.session
 def workflow_tests(session: nox.Session) -> None:
     """Check the sanity driver's controller, target selection, and report handling."""
-    session.install("antsibull-nox==1.10.0", "PyYAML")
+    session.install("-r", "requirements/sanity.txt")
     session.run("python", "-m", "unittest", "discover", "-s", "tests/workflow", "-v")

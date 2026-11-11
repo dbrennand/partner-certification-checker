@@ -1,30 +1,24 @@
-"""Exercise the embedded Nox driver without starting containers or using Galaxy."""
+"""Exercise the standalone Nox driver without starting containers or using Galaxy."""
 
+import importlib.util
 import os
+import unittest
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
-import unittest
 from unittest.mock import Mock, patch
 
-import yaml
 
-
-WORKFLOW = Path(__file__).resolve().parents[2] / ".github/workflows/certification-reusable.yml"
+DRIVER = Path(__file__).resolve().parents[2] / ".github/scripts/certification_noxfile.py"
 
 
 class SanityRunnerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        workflow = yaml.safe_load(WORKFLOW.read_text())
-        step = next(
-            step for step in workflow["jobs"]["sanity"]["steps"]
-            if step["name"] == "Write sanity noxfile"
-        )
-        source = step["run"].split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
-        cls.driver = {}
-        exec(compile(source, "certification-noxfile.py", "exec"), cls.driver)
+        spec = importlib.util.spec_from_file_location("certification_noxfile", DRIVER)
+        cls.driver = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.driver)
 
     def setUp(self):
         self.temp = TemporaryDirectory()
@@ -70,11 +64,11 @@ class SanityRunnerTests(unittest.TestCase):
             )
             return SimpleNamespace(current_path=self.prepared) if prepared else None
 
-        with patch.dict(self.driver, {"prepare_collections": Mock(side_effect=prepare)}):
-            self.driver["certification_sanity"](self.session)
+        with patch.object(self.driver, "prepare_collections", side_effect=prepare):
+            self.driver.certification_sanity(self.session)
 
     def test_all_branches_pin_controller_without_restricting_targets(self):
-        self.assertEqual(self.driver["certification_sanity"].python, "3.12")
+        self.assertEqual(self.driver.certification_sanity.python, "3.12")
         for branch in ("stable-2.16", "stable-2.18", "stable-2.20"):
             with self.subTest(branch=branch), patch.dict(os.environ, SANITY_BRANCH=branch):
                 self.session.reset_mock()
