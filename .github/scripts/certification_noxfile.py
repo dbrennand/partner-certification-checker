@@ -29,9 +29,14 @@ def certification_sanity(session):
     try:
         with session.chdir(prepared.current_path):
             session.run(
-                "ansible-test", "sanity",
-                "--controller", "docker:default,python=3.12",
-                "--junit", "-v", "--color", "yes",
+                "ansible-test",
+                "sanity",
+                "--controller",
+                "docker:default,python=3.12",
+                "--junit",
+                "-v",
+                "--color",
+                "yes",
             )
     finally:
         output = prepared.current_path / "tests" / "output"

@@ -1,2 +1,2 @@
 trivial:
-  - Extract the prototype sanity driver into a standalone Python file and share dependency pins between the workflow and regression tests.
+  - Extract the prototype sanity driver into a standalone Python file, co-locate shared dependency pins, and run Ruff lint and format checks alongside regression tests.
