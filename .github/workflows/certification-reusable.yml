@@ -12,6 +12,8 @@ permissions:
 env:
   GALAXY_IMPORTER_VER: "0.4.39"
   ANSIBLE_LINT_VER: "26.4.0"
+  ANTSIBULL_NOX_VER: "1.10.0"
+  NOX_VER: "2026.10.20"
 
 on:
   workflow_call:
@@ -26,9 +28,10 @@ on:
         type: string
       origin-python-version:
         description: >-
-          Python version for the GitHub Actions runner environment
+          Python version for the build-import and lint jobs
           (e.g. "3.12"). Downstream Execution Environments use Python 3.12.
-          It is not recommended to change this input.
+          It is not recommended to change this input. Sanity testing always
+          uses Python 3.12 for the runner and container controller.
         required: false
         default: "3.12"
         type: string
@@ -42,9 +45,10 @@ on:
         type: string
       collection-deps:
         description: >-
-          Specify collection dependencies to install during sanity checks.
-          The workflow does not automatically install dependencies from galaxy.yml
-          or requirements.yml. You can specify multiple collections separated
+          Specify additional collection dependencies to install during sanity checks.
+          Dependencies from galaxy.yml are installed automatically by antsibull-nox.
+          Other requirements.yml files are not automatically loaded.
+          You can specify multiple collections separated
           with spaces; for example, "kubernetes.core amazon.aws".
         default: ""
         type: string
@@ -225,7 +229,7 @@ jobs:
               print("::error::All sanity versions were filtered out. At least one version must remain.")
               raise SystemExit(1)
 
-          matrix = json.dumps([{"ansible": v, "python": "3.12"} for v in filtered])
+          matrix = json.dumps([{"ansible": v} for v in filtered])
           print(f"Sanity matrix: {matrix}")
 
           output_path = Path(os.environ["GITHUB_OUTPUT"])
@@ -234,31 +238,97 @@ jobs:
   # Run sanity checks against the collection
   sanity:
     needs: compute-sanity-matrix
-    name: Sanity (Ⓐ${{ matrix.ansible }}) (Python ${{ matrix.python }})
+    name: Sanity (Ⓐ${{ matrix.ansible }}) (controller Python 3.12)
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include: ${{ fromJSON(needs.compute-sanity-matrix.outputs.matrix) }}
 
+    env:
+      SANITY_BRANCH: ${{ matrix.ansible }}
+      COLLECTION_ROOT: ${{ inputs.collection-root }}
+      COLLECTION_DEPS: ${{ inputs.collection-deps }}
+      ANTSIBULL_NOX_IGNORE_INSTALLED_COLLECTIONS: "true"
+      ANSIBLE_TEST_PREFER_PODMAN: ""
+
     steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up sanity runner Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Nox and antsibull-nox
+        run: python -m pip install "nox==${NOX_VER}" "antsibull-nox==${ANTSIBULL_NOX_VER}"
+
       - name: Configure Red Hat Ansible Automation Hub
         if: ${{ inputs.automation-hub }}
         uses: ansible-collections/partner-certification-checker/.github/actions/configure-automation-hub@6842bb15f8930bcb04e2b4d50bb4348d0040955f
         with:
           ah-token: ${{ secrets.AH_TOKEN }} # zizmor: ignore[secrets-outside-env]
 
-      # Run sanity tests inside a Docker container.
-      # The docker container has all the pinned dependencies that are
-      # required and all Python versions Ansible supports.
+      # Keep the driver outside the collection and independent of partner Nox config.
+      # Embedding it ties its version to the reusable workflow, including fork tests.
+      - name: Write sanity noxfile
+        id: sanity-driver
+        shell: bash
+        run: |
+          report_id="$(python -c 'import uuid; print(uuid.uuid4())')"
+          echo "report-id=${report_id}" >> "${GITHUB_OUTPUT}"
+          cat > "${RUNNER_TEMP}/certification-noxfile.py" <<'PY'
+          import os
+          import shutil
+          from pathlib import Path
+
+          import nox
+          from antsibull_nox.sessions import prepare_collections
+
+
+          @nox.session(python="3.12")
+          def certification_sanity(session):
+              branch = os.environ["SANITY_BRANCH"]
+              collection_root = (
+                  Path(os.environ["GITHUB_WORKSPACE"]) / os.environ["COLLECTION_ROOT"]
+              ).resolve()
+              results = Path(os.environ["RUNNER_TEMP"]) / "certification-sanity-results"
+              session.install(f"https://github.com/ansible/ansible/archive/{branch}.tar.gz")
+              with session.chdir(collection_root):
+                  prepared = prepare_collections(
+                      session,
+                      ansible_core_version=branch.removeprefix("stable-"),
+                      install_in_site_packages=False,
+                      install_out_of_tree=True,
+                      extra_collections=os.environ["COLLECTION_DEPS"].split(),
+                  )
+              if prepared is None:
+                  session.error("Collection preparation failed")
+              try:
+                  with session.chdir(prepared.current_path):
+                      session.run(
+                          "ansible-test", "sanity",
+                          "--controller", "docker:default,python=3.12",
+                          "--junit", "-v", "--color", "yes",
+                      )
+              finally:
+                  output = prepared.current_path / "tests" / "output"
+                  if output.is_dir():
+                      shutil.copytree(output, results, dirs_exist_ok=True)
+          PY
+
       - name: Perform sanity testing
-        # See the documentation for the following GitHub action on
-        # https://github.com/ansible-community/ansible-test-gh-action/blob/main/README.md
-        uses: ansible-community/ansible-test-gh-action@9cdbd323f59530c0f43669f1168c8ef4a8c06d41
+        run: >-
+          nox --noxfile "${RUNNER_TEMP}/certification-noxfile.py"
+          --envdir "${RUNNER_TEMP}/certification-nox"
+          --session certification_sanity
+
+      - name: Upload sanity results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          ansible-core-version: ${{ matrix.ansible }}
-          origin-python-version: ${{ inputs.origin-python-version }}
-          target-python-version: ${{ matrix.python }}
-          testing-type: sanity
-          test-deps: ${{ inputs.collection-deps }}
-          collection-root: ${{ inputs.collection-root }}
-          pull-request-change-detection: false
+          name: sanity-${{ matrix.ansible }}-${{ steps.sanity-driver.outputs.report-id }}
+          path: ${{ runner.temp }}/certification-sanity-results/
+          if-no-files-found: ignore

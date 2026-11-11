@@ -26,6 +26,8 @@ jobs:
             python-versions: "3.12"
           - session: "zizmor"
             python-versions: "3.12"
+          - session: "workflow_tests"
+            python-versions: "3.12"
 
     name: "Run nox ${{ matrix.session }} session"
     steps:

@@ -61,3 +61,10 @@ def zizmor(session: nox.Session) -> None:
         args.append("--persona=regular")
     session.install("zizmor")
     session.run("zizmor", *args, ".github/workflows")
+
+
+@nox.session
+def workflow_tests(session: nox.Session) -> None:
+    """Check the sanity driver's controller, target selection, and report handling."""
+    session.install("antsibull-nox==1.10.0", "PyYAML")
+    session.run("python", "-m", "unittest", "discover", "-s", "tests/workflow", "-v")

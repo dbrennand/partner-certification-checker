@@ -1,0 +1,13 @@
+breaking_changes:
+  - >-
+    Prototype replacing ansible-test-gh-action with antsibull-nox 1.10.0 for
+    sanity testing. The runner and container controller use Python 3.12 while
+    ansible-test checks all applicable supported target Python versions.
+    The origin-python-version input now only configures build-import and lint.
+    Dependencies declared in galaxy.yml are installed automatically alongside
+    explicitly requested collection-deps. Other requirements.yml files are not
+    automatically loaded. Sanity reports are uploaded as workflow artifacts.
+    Porting guide: fix compatibility failures exposed by the expanded Python
+    coverage, or add permitted version-specific sanity ignores. Review declared
+    collection dependencies and Automation Hub access before adopting this
+    prototype. These behavior changes require a major release if adopted.

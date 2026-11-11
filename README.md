@@ -84,10 +84,40 @@ To ignore an allowed sanity failure:
 | Component                                             | Version                                     |
 | ----------------------------------------------------- | ------------------------------------------- |
 | ansible-core sanity branches                          | `stable-2.16`, `stable-2.18`, `stable-2.20` |
+| Sanity runner and container controller Python         | `3.12`                                      |
+| Sanity orchestration                                 | `antsibull-nox 1.10.0`, `nox 2026.10.20`      |
 | Python for `ansible-lint` and `galaxy-importer`       | `3.12`                                      |
 | Default ansible-core for build, import, and lint jobs | `2.16.19`                                   |
 
 The tested ansible-core branches are aligned with downstream Execution Environments.
+
+This branch prototypes sanity testing with `antsibull-nox` in place of
+`ansible-test-gh-action`. Both the runner and the container controller use
+Python 3.12. The `origin-python-version` input configures only the build, import,
+and lint jobs.
+
+Sanity runs `ansible-test sanity --controller docker:default,python=3.12` without
+restricting target interpreters. Each ansible-core branch selects all applicable
+supported Python versions for the collection. The managed-node ranges in the
+[Red Hat support policy](https://access.redhat.com/support/policy/updates/ansible-automation-platform#coreversion)
+are Python 2.7 and 3.6–3.12 for core 2.16, 3.8–3.13 for 2.18, and 3.9–3.14 for
+2.20. Individual checks distinguish controller plugins from managed-node modules
+and respect module Python requirements in `tests/config.yml`.
+
+Unlike the released checker, this prototype automatically installs dependencies
+from `galaxy.yml` through `antsibull-nox`. The `collection-deps` input adds further
+collections; other `requirements.yml` files are not loaded automatically.
+Automation Hub configuration is also used for this dependency resolution.
+
+The workflow generates its own Nox driver outside the collection and does not
+load or replace a partner's `noxfile.py` or `antsibull-nox.toml`. Sanity outputs,
+including JUnit reports, are uploaded as `sanity-<branch>-<unique-id>` artifacts,
+including when sanity checks fail. This prototype requires a major release and
+porting guidance before adoption; it is not a released certification workflow.
+
+Validate the driver locally with `nox -e workflow_tests`. Full container runs
+are exercised by the existing certification fixture workflow and the
+`community.beszel` prototype caller.
 
 The workflow automatically detects lower bounds for ansible-core in the
 `requires_ansible` key in the `meta/runtime.yml` file of your collection.

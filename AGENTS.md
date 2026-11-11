@@ -15,7 +15,8 @@ The repository root also contains a minimal Ansible collection (`ansible.certifi
 - Linting and security-checking the reusable workflow and calling-workflow YAML themselves is done with [nox](noxfile.py):
   - `nox -e actionlint` — lints `.github/workflows/*.yml` with [actionlint](https://github.com/rhysd/actionlint) (runs in a Podman/Docker container).
   - `nox -e zizmor` — scans `.github/workflows` with [zizmor](https://github.com/woodruffw/zizmor) for GitHub Actions security issues.
-  - Both sessions are run in [ci.yaml](.github/workflows/ci.yaml) on every push and PR.
+  - `nox -e workflow_tests` — tests the embedded antsibull-nox sanity driver without containers or Galaxy access.
+  - All three sessions are run in [ci.yaml](.github/workflows/ci.yaml) on every push and PR.
 - The checker's own end-to-end coverage is [test-certification-main-branch.yml](.github/workflows/test-certification-main-branch.yml), which calls `certification-reusable.yml` several ways (default ansible-core, `2.18.0`, `2.20.0`, an alternate `collection-root`, and single/multiple `collection-deps`) against the sample and fixture collections. This only runs in GitHub Actions.
 - For exact commands and what they cover, see `.agents/skills/run-tests/SKILL.md`.
 

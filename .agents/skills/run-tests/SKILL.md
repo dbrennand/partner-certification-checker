@@ -27,7 +27,12 @@ Installs [zizmor](https://github.com/woodruffw/zizmor) via pip and scans `.githu
 
 ### Changes to the reusable workflow's behavior (inputs, outputs, checks performed)
 
-There is no unit-test suite for the workflow logic itself. Validation is end-to-end, via GitHub Actions only:
+Run `nox -e workflow_tests` for local regression checks of the embedded sanity
+driver: Python 3.12 controller selection, unrestricted targets, collection root
+and dependency forwarding, preparation failure, and report preservation on failure.
+These tests mock collection preparation and command execution; they do not run
+containers or resolve dependencies. Full workflow validation is end-to-end via
+GitHub Actions:
 
 - Push the branch / open a PR to trigger [test-certification-main-branch.yml](../../../.github/workflows/test-certification-main-branch.yml), which calls `certification-reusable.yml` several ways against this repo's own sample and fixture collections:
   - default ansible-core version
