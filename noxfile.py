@@ -65,6 +65,8 @@ def zizmor(session: nox.Session) -> None:
 
 @nox.session
 def workflow_tests(session: nox.Session) -> None:
-    """Check the sanity driver's controller, target selection, and report handling."""
-    session.install("-r", "requirements/sanity.txt")
+    """Lint, check formatting, and test the standalone sanity driver."""
+    session.install("-r", ".github/scripts/requirements.txt", "ruff")
+    session.run("ruff", "check", ".github/scripts/certification_noxfile.py")
+    session.run("ruff", "format", "--check", ".github/scripts/certification_noxfile.py")
     session.run("python", "-m", "unittest", "discover", "-s", "tests/workflow", "-v")

@@ -109,7 +109,7 @@ from `galaxy.yml` through `antsibull-nox`. The `collection-deps` input adds furt
 collections; other `requirements.yml` files are not loaded automatically.
 Automation Hub configuration is also used for this dependency resolution.
 
-The workflow fetches a standalone Nox driver and `requirements/sanity.txt` from
+The workflow fetches a standalone Nox driver and `.github/scripts/requirements.txt` from
 an explicitly pinned checker revision, then moves them outside the collection.
 The regression tests use that same requirements file and verify that the pinned
 files match the files in this checkout. Updating either file requires a commit
@@ -123,7 +123,8 @@ including JUnit reports, are uploaded as `sanity-<branch>-<unique-id>` artifacts
 including when sanity checks fail. This prototype requires a major release and
 porting guidance before adoption; it is not a released certification workflow.
 
-Validate the driver locally with `nox -e workflow_tests`. Full container runs
+Validate the driver locally with `nox -e workflow_tests`, which also runs Ruff
+lint and format checks. Full container runs
 are exercised by the existing certification fixture workflow and the
 `community.beszel` prototype caller.
 

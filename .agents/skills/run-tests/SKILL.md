@@ -30,6 +30,7 @@ Installs [zizmor](https://github.com/woodruffw/zizmor) via pip and scans `.githu
 Run `nox -e workflow_tests` for local regression checks of the standalone sanity
 driver: Python 3.12 controller selection, unrestricted targets, collection root
 and dependency forwarding, preparation failure, and report preservation on failure.
+The session also runs Ruff lint and format checks on the driver.
 They also check that the workflow pins the same driver and requirements files
 that are tested locally. These packaging checks require the pinned commit to be
 available locally; CI checks out full history for this purpose.

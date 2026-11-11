@@ -265,12 +265,12 @@ jobs:
         with:
           repository: dbrennand/partner-certification-checker
           # Standalone driver and shared requirements packaged for this prototype.
-          ref: 55951a0fbdb07373e68b1db279ef34202c6c087e
+          ref: 27a7ebec9ec114c2764cce0e6f45aac2607aa81d
           path: .certification-checker
           persist-credentials: false
           sparse-checkout: |
             /.github/scripts/certification_noxfile.py
-            /requirements/sanity.txt
+            /.github/scripts/requirements.txt
           sparse-checkout-cone-mode: false
 
       - name: Prepare sanity tools
@@ -282,7 +282,7 @@ jobs:
           echo "report-id=${report_id}" >> "${GITHUB_OUTPUT}"
 
       - name: Install Nox and antsibull-nox
-        run: python -m pip install -r "${RUNNER_TEMP}/certification-checker/requirements/sanity.txt"
+        run: python -m pip install -r "${RUNNER_TEMP}/certification-checker/.github/scripts/requirements.txt"
 
       - name: Configure Red Hat Ansible Automation Hub
         if: ${{ inputs.automation-hub }}

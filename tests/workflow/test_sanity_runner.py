@@ -27,7 +27,7 @@ class SanityPackagingTests(unittest.TestCase):
         )
         revision = checkout["with"]["ref"]
         self.assertRegex(revision, re.compile(r"^[0-9a-f]{40}$"))
-        for path in (".github/scripts/certification_noxfile.py", "requirements/sanity.txt"):
+        for path in (".github/scripts/certification_noxfile.py", ".github/scripts/requirements.txt"):
             with self.subTest(path=path):
                 packaged = subprocess.run(
                     ["git", "show", f"{revision}:{path}"],
