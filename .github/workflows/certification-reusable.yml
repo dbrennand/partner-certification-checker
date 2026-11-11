@@ -124,7 +124,7 @@ jobs:
         with:
           ah-token: ${{ secrets.AH_TOKEN }} # zizmor: ignore[secrets-outside-env]
 
-      - name: Build the collection tarball and run galaxy importer on it
+      - name: Build the collection tarball and run galaxy importer
         shell: bash
         run: python -m galaxy_importer.main --git-clone-path "${COLLECTION_ROOT}" --output-path /tmp
 
